@@ -1,0 +1,4 @@
+{
+  "zh-Hans": "· 修复 PDF 导出与打印：之前会输出写不完的空白页，现在按块级元素边界分页，标题不会落单在页尾\n· 新增文件夹批量导出：侧栏右键文件夹或「文件 ▸ 导出文件夹」，整个文件夹转成同一种格式并保持目录结构\n· 侧栏与标签页右键新增「导出」，不用先打开文件也能导出\n· 可以导入自己的字体，或填写 Google Fonts 字体名直接下载使用\n· LiteMD 现已开源（MIT）：https://github.com/gentpan/LiteMD",
+  "en": "· Fixed PDF export and printing: it used to emit an endless stream of blank pages. Pages now break at block boundaries, and headings are never stranded at the bottom of a page.\n· Export a whole folder: right-click a folder in the sidebar or use File ▸ Export Folder to convert everything at once, keeping the folder structure.\n· Added Export to the sidebar and tab context menus, so a file no longer has to be open to export it.\n· Import your own fonts, or type a Google Fonts family name and LiteMD fetches it.\n· LiteMD is now open source under the MIT license: https://github.com/gentpan/LiteMD"
+}
