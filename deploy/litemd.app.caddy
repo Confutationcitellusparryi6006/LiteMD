@@ -18,7 +18,7 @@ litemd.app {
 	header /index.html Cache-Control "no-cache"
 	# 安装包文件名带版本号，内容不会变，可以长缓存。
 	# 必须先确认文件存在：否则包还没传上去时的一次 404 会被 CDN 按 30 天缓存住，
-	# 之后文件传上来了，用户拿到的仍然是 404。
+	# 之后文件传上来了，用户拿到的仍然是 404（这个坑踩过一次，靠手动清缓存才恢复）。
 	# 注意：重新打同一个版本号会被 CDN 挡住，那种情况要手动清缓存。
 	@release_files {
 		path /releases/*.dmg /releases/*.zip
