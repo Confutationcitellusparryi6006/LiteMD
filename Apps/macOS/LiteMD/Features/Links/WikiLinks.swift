@@ -1,0 +1,237 @@
+import AppKit
+import LiteMDApplication
+import LiteMDDomain
+import Observation
+import SwiftUI
+
+/// 当前文档的反向链接。切换文档或文件变化时后台重新计算。
+@MainActor
+@Observable
+final class BacklinksModel {
+    private(set) var backlinks: [Backlink] = []
+    private(set) var isLoading = false
+    private(set) var documentURL: URL?
+
+    @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored weak var model: AppModel?
+
+    func refresh(for url: URL?) {
+        task?.cancel()
+        documentURL = url
+        guard let url, let model, let root = model.workspace.rootURL else {
+            backlinks = []
+            isLoading = false
+            return
+        }
+        isLoading = true
+        task = Task { [weak self] in
+            // 连续切换文档时只计算最后一个。
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled, let self else { return }
+            let files = await model.workspace.allMarkdownFiles()
+            let result = await model.backlinkIndex.backlinks(to: url, root: root, files: files)
+            guard !Task.isCancelled, self.documentURL == url else { return }
+            self.backlinks = result
+            self.isLoading = false
+        }
+    }
+}
+
+@MainActor
+extension AppModel {
+    /// 打开 `[[目标#标题]]`。目标不存在时询问是否新建。
+    func openWikiLink(target: String, anchor: String?, from document: Document?) {
+        Task {
+            let files = await workspace.allMarkdownFiles()
+            let sourceURL = document?.fileReference?.url
+            if let url = WikiLinkResolver.resolve(target, from: sourceURL, root: workspace.rootURL, candidates: files) {
+                guard let opened = await openDocument(url) else { return }
+                if let anchor { revealAnchor(anchor, in: opened) }
+                return
+            }
+            if target.isEmpty, let document, let anchor {
+                revealAnchor(anchor, in: document)
+                return
+            }
+            await offerToCreateNote(named: target, near: sourceURL)
+        }
+    }
+
+    private func revealAnchor(_ anchor: String, in document: Document) {
+        // 解析结果可能稍后才到，稍等一次。
+        Task {
+            for _ in 0..<10 {
+                if let headings = document.parseResult?.headings {
+                    let wanted = anchor.lowercased()
+                    if let heading = headings.first(where: { $0.title.lowercased() == wanted || $0.anchor == wanted }) {
+                        editor(for: document).moveCursor(to: heading.offset)
+                    }
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+        }
+    }
+
+    private func offerToCreateNote(named target: String, near sourceURL: URL?) async {
+        guard let directory = workspace.rootURL ?? sourceURL?.deletingLastPathComponent() else {
+            SystemIntegration.runAlert(
+                title: String(localized: "“\(target)” was not found."),
+                message: String(localized: "Open a folder to link notes by name."),
+                buttons: [String(localized: "OK")],
+                style: .informational
+            )
+            return
+        }
+        let choice = SystemIntegration.runAlert(
+            title: String(localized: "“\(target)” does not exist yet."),
+            message: String(localized: "Create a new note named “\(WikiLinkResolver.fileName(for: target)).md” in “\(directory.lastPathComponent)”?"),
+            buttons: [String(localized: "Create Note"), String(localized: "Cancel")],
+            style: .informational
+        )
+        guard choice == 0 else { return }
+
+        let name = WikiLinkResolver.fileName(for: (target as NSString).lastPathComponent)
+        let url = directory.appendingPathComponent(name).appendingPathExtension("md")
+        do {
+            let title = (target as NSString).lastPathComponent
+            try await fileSystem.createFile(at: url, contents: Data("# \(title)\n\n".utf8))
+            await workspace.refreshDirectory(directory)
+            workspace.invalidateMarkdownFileCache()
+            await openDocument(url)
+        } catch {
+            SystemIntegration.present(error)
+        }
+    }
+
+    /// 双链自动补全的候选：Workspace 中的笔记名（重名时带目录）。
+    func wikiLinkCompletions(prefix: String) async -> [String] {
+        guard let root = workspace.rootURL else { return [] }
+        let files = await workspace.allMarkdownFiles()
+        var counts: [String: Int] = [:]
+        for file in files {
+            counts[file.deletingPathExtension().lastPathComponent.lowercased(), default: 0] += 1
+        }
+        let needle = prefix.lowercased()
+        let names = files.map { file -> String in
+            let name = file.deletingPathExtension().lastPathComponent
+            guard counts[name.lowercased(), default: 0] > 1 else { return name }
+            let relative = String(file.deletingPathExtension().standardizedFileURL.path.dropFirst(root.standardizedFileURL.path.count + 1))
+            return relative
+        }
+        return Array(Set(names))
+            .filter { needle.isEmpty || $0.lowercased().contains(needle) }
+            .sorted { lhs, rhs in
+                let lhsPrefix = lhs.lowercased().hasPrefix(needle)
+                let rhsPrefix = rhs.lowercased().hasPrefix(needle)
+                if lhsPrefix != rhsPrefix { return lhsPrefix }
+                return lhs.localizedStandardCompare(rhs) == .orderedAscending
+            }
+            .prefix(50)
+            .map { $0 }
+    }
+}
+
+/// 大纲面板底部的反向链接列表。
+struct BacklinksSection: View {
+    @Environment(AppModel.self) private var model
+    @State private var isExpanded = true
+
+    var body: some View {
+        let backlinks = model.backlinks
+
+        VStack(alignment: .leading, spacing: 0) {
+            Divider()
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack(spacing: Space.s2) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: TextSize.xs, weight: .semibold))
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    Text("Backlinks")
+                        .font(.system(size: TextSize.xs, weight: .semibold))
+                    Spacer()
+                    if backlinks.isLoading {
+                        ProgressView().controlSize(.mini)
+                    } else {
+                        Text(verbatim: "\(backlinks.backlinks.count)")
+                            .font(.system(size: TextSize.xs).monospacedDigit())
+                    }
+                }
+                .foregroundStyle(Color.textSecondary)
+                .padding(.horizontal, Space.s4)
+                .frame(height: Layout.statusBarHeight)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                if model.workspace.root == nil {
+                    placeholder("Open a folder to see which notes link here.")
+                } else if backlinks.backlinks.isEmpty, !backlinks.isLoading {
+                    placeholder("No other notes link to this document.")
+                } else {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: Space.s1) {
+                            ForEach(backlinks.backlinks) { link in
+                                BacklinkRow(link: link)
+                            }
+                        }
+                        .padding(.horizontal, Space.s2)
+                        .padding(.bottom, Space.s2)
+                    }
+                    .frame(maxHeight: Layout.backlinksMaximumHeight)
+                }
+            }
+        }
+    }
+
+    private func placeholder(_ text: LocalizedStringKey) -> some View {
+        Text(text)
+            .font(.system(size: TextSize.xs))
+            .foregroundStyle(Color.textTertiary)
+            .padding(.horizontal, Space.s4)
+            .padding(.bottom, Space.s3)
+    }
+}
+
+private struct BacklinkRow: View {
+    @Environment(AppModel.self) private var model
+    let link: Backlink
+    @State private var isHovering = false
+
+    var body: some View {
+        Button {
+            model.openSearchResult(link.sourceURL, match: SearchMatch(line: link.line, column: 1, range: link.range, snippet: link.snippet, snippetMatchRange: NSRange(location: 0, length: 0)))
+        } label: {
+            VStack(alignment: .leading, spacing: Space.s1) {
+                HStack(spacing: Space.s1) {
+                    Image(systemName: link.kind == .wikiLink ? "link" : "doc.text")
+                        .font(.system(size: TextSize.xs))
+                    Text(verbatim: link.sourceURL.deletingPathExtension().lastPathComponent)
+                        .font(.system(size: TextSize.xs, weight: .semibold))
+                    Spacer()
+                    Text(verbatim: "\(link.line)")
+                        .font(.system(size: TextSize.xs).monospacedDigit())
+                        .foregroundStyle(Color.textTertiary)
+                }
+                .foregroundStyle(Color.textPrimary)
+                Text(verbatim: link.snippet)
+                    .font(.system(size: TextSize.xs))
+                    .foregroundStyle(Color.textSecondary)
+                    .lineLimit(2)
+            }
+            .padding(Space.s2)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.small)
+                    .fill(isHovering ? Color.borderSubtle : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovering = $0 }
+        .help(model.relativePath(for: link.sourceURL))
+    }
+}

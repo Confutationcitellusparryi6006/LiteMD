@@ -1,0 +1,85 @@
+name: LiteMD
+
+options:
+  bundleIdPrefix: app.litemd
+  developmentLanguage: en
+  deploymentTarget:
+    macOS: "15.0"
+  createIntermediateGroups: true
+  knownRegions: [en, zh-Hans, Base]
+  groupSortPosition: top
+
+packages:
+  LiteMDKit:
+    path: Packages/LiteMDKit
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+
+targets:
+  LiteMD:
+    type: application
+    platform: macOS
+    sources:
+      - path: Apps/macOS/LiteMD
+        excludes:
+          - "Resources/PreviewLibraries"
+          - "Resources/PreviewLibraries/**"
+      # 预览使用的第三方库（KaTeX、highlight.js、Mermaid）保持目录结构。
+      - path: Apps/macOS/LiteMD/Resources/PreviewLibraries
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - package: LiteMDKit
+        product: LiteMDDomain
+      - package: LiteMDKit
+        product: LiteMDEditor
+      - package: LiteMDKit
+        product: LiteMDMarkdown
+      - package: LiteMDKit
+        product: LiteMDInfrastructure
+      - package: LiteMDKit
+        product: LiteMDApplication
+      - package: LiteMDKit
+        product: LiteMDConversion
+      - package: LiteMDKit
+        product: LiteMDBackup
+      - package: LiteMDKit
+        product: LiteMDUpdates
+    settings:
+      base:
+        PRODUCT_NAME: LiteMD
+        PRODUCT_BUNDLE_IDENTIFIER: app.litemd.LiteMD
+        INFOPLIST_FILE: Apps/macOS/LiteMD/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        DEVELOPMENT_TEAM: ""
+        ENABLE_HARDENED_RUNTIME: NO
+        COMBINE_HIDPI_IMAGES: YES
+        SWIFT_STRICT_CONCURRENCY: complete
+        SWIFT_EMIT_LOC_STRINGS: YES
+        CODE_SIGN_ENTITLEMENTS: Apps/macOS/LiteMD/LiteMD.entitlements
+        # 更新源与公钥由发布脚本传入；为空时应用内不检查更新。
+        LITEMD_UPDATE_FEED_URL: ""
+        LITEMD_UPDATE_PUBLIC_KEY: ""
+      configs:
+        Release:
+          ENABLE_HARDENED_RUNTIME: YES
+
+schemes:
+  LiteMD:
+    build:
+      targets:
+        LiteMD: all
+    run:
+      config: Debug
+    archive:
+      config: Release

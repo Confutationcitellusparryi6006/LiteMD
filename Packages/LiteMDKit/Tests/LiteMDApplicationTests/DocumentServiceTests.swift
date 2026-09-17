@@ -1,0 +1,412 @@
+import Foundation
+@testable import LiteMDApplication
+import LiteMDDomain
+import LiteMDInfrastructure
+import Testing
+
+@Suite("Document revision model")
+@MainActor
+struct DocumentRevisionTests {
+    /// spec §178
+    @Test func editingMakesDocumentDirty() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "hello")
+        let document = try await env.service.openDocument(at: url)
+
+        #expect(document.revision == document.savedRevision)
+        #expect(!document.isDirty)
+
+        document.type(" world")
+        #expect(document.revision == document.savedRevision + 1)
+        #expect(document.isDirty)
+        #expect(document.saveState == .dirty)
+
+        try await env.service.save(document)
+        #expect(!document.isDirty)
+        #expect(env.directory.read(url) == "hello world")
+    }
+
+    @Test func openingSameFileTwiceFocusesExistingDocument() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "x")
+        let link = env.directory.url.appendingPathComponent("link.md")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: url)
+
+        let first = try await env.service.openDocument(at: url)
+        _ = env.service.newDocument()
+        let second = try await env.service.openDocument(at: url)
+        let viaLink = try await env.service.openDocument(at: link)
+
+        #expect(first === second)
+        #expect(first === viaLink)
+        #expect(env.service.documents.count == 2)
+        #expect(env.service.activeDocumentID == first.id)
+    }
+
+    @Test func untitledDocumentsAreNumberedAndSavedAs() async throws {
+        let env = TestEnvironment()
+        let first = env.service.newDocument()
+        let second = env.service.newDocument(text: "draft")
+        #expect(first.displayName == "Untitled")
+        #expect(second.displayName == "Untitled 2")
+        #expect(second.isDirty)
+
+        await #expect(throws: LiteMDError.self) {
+            try await env.service.save(second)
+        }
+
+        let url = env.directory.file("draft.md")
+        try await env.service.save(second, to: url)
+        #expect(!second.isDirty)
+        #expect(second.fileReference?.url == url)
+        #expect(env.directory.read(url) == "draft")
+    }
+}
+
+@Suite("SaveCoordinator")
+@MainActor
+struct SaveCoordinatorTests {
+    /// spec §179：保存期间继续输入，不能错误地变为 clean。
+    @Test func editDuringSaveKeepsDocumentDirty() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "v0")
+        let document = try await env.service.openDocument(at: url)
+
+        document.type("-10")
+        let savingRevision = document.revision
+        env.fileSystem.holdWrites()
+
+        let saveTask = Task { try await env.service.save(document) }
+        #expect(await waitUntil { env.fileSystem.writeCount == 1 })
+        #expect(document.saveState == .saving)
+
+        document.type("-11")
+        env.fileSystem.releaseWrites()
+        try await saveTask.value
+
+        #expect(document.savedRevision == savingRevision)
+        #expect(document.revision == savingRevision + 1)
+        #expect(document.isDirty)
+        #expect(env.directory.read(url) == "v0-10")
+    }
+
+    /// spec §101：同一文档不并发写入，等待中的保存合并为最新 revision。
+    @Test func concurrentSavesAreCoalesced() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "")
+        let document = try await env.service.openDocument(at: url)
+
+        document.type("20")
+        env.fileSystem.holdWrites()
+        let first = Task { try await env.service.save(document) }
+        #expect(await waitUntil { env.fileSystem.writeCount == 1 })
+
+        document.type("-21")
+        let second = Task { try await env.service.save(document) }
+        document.type("-22")
+        let third = Task { try await env.service.save(document) }
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(env.fileSystem.writeCount == 1)
+
+        env.fileSystem.releaseWrites()
+        try await first.value
+        try await second.value
+        try await third.value
+
+        #expect(env.fileSystem.writtenTexts == ["20", "20-21-22"])
+        #expect(!document.isDirty)
+        #expect(env.directory.read(url) == "20-21-22")
+    }
+
+    /// spec §180：外部修改后自动保存必须进入冲突，而不是覆盖。
+    @Test func externalModificationBecomesConflict() async throws {
+        let env = TestEnvironment(autosave: true)
+        let url = env.directory.file("README.md", "Revision A")
+        let document = try await env.service.openDocument(at: url)
+
+        try externalWrite("Revision B", to: url)
+        document.type(" + mine")
+        env.service.noteTextDidChange(document, isComposing: false)
+
+        #expect(await waitUntil { document.conflict == .externalModified })
+        #expect(env.directory.read(url) == "Revision B")
+        #expect(document.isDirty)
+        #expect(env.fileSystem.writeCount == 0)
+
+        // 冲突期间的手动保存同样不能覆盖。
+        await #expect(throws: LiteMDError.self) {
+            try await env.service.save(document)
+        }
+        #expect(env.directory.read(url) == "Revision B")
+    }
+
+    @Test func keepMineOverwritesAfterExplicitChoice() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "A")
+        let document = try await env.service.openDocument(at: url)
+        try externalWrite("B", to: url)
+        document.type("-mine")
+
+        await #expect(throws: LiteMDError.self) { try await env.service.save(document) }
+        #expect(document.conflict == .externalModified)
+
+        try await env.service.resolveConflictByKeepingLocal(document)
+        #expect(document.conflict == .none)
+        #expect(!document.isDirty)
+        #expect(env.directory.read(url) == "A-mine")
+    }
+
+    @Test func reloadReplacesLocalContent() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "A")
+        let document = try await env.service.openDocument(at: url)
+        try externalWrite("B\r\nfrom disk", to: url)
+        document.type("-mine")
+        await #expect(throws: LiteMDError.self) { try await env.service.save(document) }
+
+        #expect(try await env.service.diskText(for: document) == "B\nfrom disk")
+        try await env.service.resolveConflictByReloading(document)
+        #expect(document.text == "B\nfrom disk")
+        #expect(document.fileReference?.lineEnding == .crlf)
+        #expect(!document.isDirty)
+        #expect(document.conflict == .none)
+    }
+
+    @Test func metadataOnlyChangeIsNotAConflict() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "same")
+        let document = try await env.service.openDocument(at: url)
+        try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(10)], ofItemAtPath: url.path)
+
+        document.type("!")
+        try await env.service.save(document)
+        #expect(env.directory.read(url) == "same!")
+    }
+
+    @Test func deletedFileBecomesConflictAndCanBeRecreated() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "A")
+        let document = try await env.service.openDocument(at: url)
+        try FileManager.default.removeItem(at: url)
+
+        document.type("B")
+        await #expect(throws: LiteMDError.self) { try await env.service.save(document) }
+        #expect(document.conflict == .externalDeleted)
+
+        try await env.service.resolveConflictByKeepingLocal(document)
+        #expect(env.directory.read(url) == "AB")
+    }
+
+    @Test func autosaveWritesAfterDebounce() async throws {
+        let env = TestEnvironment(autosave: true)
+        let url = env.directory.file("a.md", "")
+        let document = try await env.service.openDocument(at: url)
+
+        document.type("auto")
+        env.service.noteTextDidChange(document, isComposing: false)
+        #expect(document.saveState == .scheduled)
+        #expect(await waitUntil { env.directory.read(url) == "auto" })
+        #expect(await waitUntil { document.saveState == .clean })
+    }
+
+    /// spec §104：IME 组合期间不自动保存。
+    @Test func autosaveWaitsForCompositionCommit() async throws {
+        let env = TestEnvironment(autosave: true)
+        let url = env.directory.file("a.md", "")
+        let document = try await env.service.openDocument(at: url)
+
+        document.type("zhong")
+        env.service.noteTextDidChange(document, isComposing: true)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(env.fileSystem.writeCount == 0)
+
+        document.applyEdit(range: NSRange(location: 0, length: 5), replacement: "中")
+        env.service.noteTextDidChange(document, isComposing: false)
+        #expect(await waitUntil { env.directory.read(url) == "中" })
+    }
+}
+
+@Suite("Version history")
+@MainActor
+struct VersionHistoryTests {
+    @Test func backsUpOriginalContentBeforeFirstOverwriteOnly() async throws {
+        let directory = TemporaryDirectory()
+        let historyDirectory = TemporaryDirectory()
+        let recoveryDirectory = TemporaryDirectory()
+        let history = FileVersionHistoryStore(directory: historyDirectory.url)
+        let service = DocumentService(
+            fileSystem: LocalFileSystem(),
+            parser: LiteMDMarkdownParserStub(),
+            recoveryStore: FileRecoveryStore(directory: recoveryDirectory.url),
+            versionHistory: history
+        )
+        service.isAutosaveEnabled = false
+
+        let url = directory.file("note.md", "original content")
+        let document = try await service.openDocument(at: url)
+        document.type(" v1")
+        try await service.save(document)
+        document.type(" v2")
+        try await service.save(document)
+
+        let snapshots = await history.snapshots(for: url)
+        #expect(snapshots.count == 1)
+        #expect(try String(contentsOf: try #require(snapshots.first).fileURL, encoding: .utf8) == "original content")
+        #expect(directory.read(url) == "original content v1 v2")
+    }
+
+    @Test func keepsOneSnapshotPerIntervalAndSkipsDuplicates() async throws {
+        let directory = TemporaryDirectory()
+        let historyDirectory = TemporaryDirectory()
+        let recoveryDirectory = TemporaryDirectory()
+        let history = FileVersionHistoryStore(directory: historyDirectory.url)
+        let service = DocumentService(
+            fileSystem: LocalFileSystem(),
+            parser: LiteMDMarkdownParserStub(),
+            recoveryStore: FileRecoveryStore(directory: recoveryDirectory.url),
+            versionHistory: history,
+            historySnapshotInterval: 0
+        )
+        service.isAutosaveEnabled = false
+
+        let url = directory.file("note.md", "one")
+        let document = try await service.openDocument(at: url)
+        document.type(" two")
+        try await service.save(document)
+        try await Task.sleep(for: .milliseconds(5))
+        document.type(" three")
+        try await service.save(document)
+
+        let snapshots = await service.versionSnapshots(for: document)
+        #expect(snapshots.count == 2)
+        #expect(try await service.text(of: snapshots[0]) == "one two")
+        #expect(try await service.text(of: snapshots[1]) == "one")
+        #expect(snapshots[0].byteCount == 7)
+
+        // 与最近一份内容相同的快照不会重复保存。
+        await history.storeSnapshot(of: url, data: Data("one two".utf8), date: Date())
+        #expect(await history.snapshots(for: url).count == 2)
+    }
+}
+
+@Suite("External changes")
+@MainActor
+struct ExternalChangeTests {
+    @Test func cleanDocumentReloadsAutomatically() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "old")
+        let document = try await env.service.openDocument(at: url)
+
+        try externalWrite("new", to: url)
+        await env.service.handleFileEvents([FileEvent(url: url, flags: .modified)])
+
+        #expect(document.text == "new")
+        #expect(!document.isDirty)
+        #expect(document.conflict == .none)
+    }
+
+    @Test func dirtyDocumentEntersConflictInsteadOfReloading() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "old")
+        let document = try await env.service.openDocument(at: url)
+        document.type(" local")
+
+        try externalWrite("new", to: url)
+        await env.service.handleFileEvents([FileEvent(url: url, flags: .modified)])
+
+        #expect(document.text == "old local")
+        #expect(document.conflict == .externalModified)
+    }
+
+    @Test func ownSaveDoesNotTriggerConflict() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "old")
+        let document = try await env.service.openDocument(at: url)
+        document.type("!")
+        try await env.service.save(document)
+
+        await env.service.handleFileEvents([FileEvent(url: url, flags: .modified)])
+        #expect(document.conflict == .none)
+        #expect(document.text == "old!")
+    }
+
+    @Test func externalRenameIsFollowed() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "content")
+        let document = try await env.service.openDocument(at: url)
+        let inode = try #require(document.fileReference?.identity?.inode)
+
+        let renamed = env.directory.url.appendingPathComponent("b.md")
+        try FileManager.default.moveItem(at: url, to: renamed)
+        await env.service.handleFileEvents([
+            FileEvent(url: url, flags: .renamed, inode: inode),
+            FileEvent(url: renamed, flags: .renamed, inode: inode),
+        ])
+
+        #expect(document.fileReference?.url == renamed.standardizedFileURL)
+        #expect(document.conflict == .none)
+    }
+
+    @Test func externalDeletionIsReported() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "content")
+        let document = try await env.service.openDocument(at: url)
+        try FileManager.default.removeItem(at: url)
+
+        await env.service.handleFileEvents([FileEvent(url: url, flags: .removed)])
+        #expect(document.conflict == .externalDeleted)
+    }
+}
+
+@Suite("Recovery")
+@MainActor
+struct RecoveryTests {
+    /// spec §181：快照 → 强制退出 → 重启 → 提示恢复，内容与快照一致。
+    @Test func recoversUnsavedEditsAfterCrash() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "saved")
+        let document = try await env.service.openDocument(at: url)
+        document.type(" + unsaved")
+        env.service.noteTextDidChange(document, isComposing: false)
+        let untitled = env.service.newDocument(text: "scratch")
+        env.service.noteTextDidChange(untitled, isComposing: false)
+
+        let recoveryURL = env.recoveryDirectory.url
+        #expect(await waitUntil { await FileRecoveryStore(directory: recoveryURL).entries().count == 2 })
+
+        // “重启”：新的服务实例，共享同一个 Recovery 目录。
+        let store = FileRecoveryStore(directory: recoveryURL)
+        let relaunched = DocumentService(fileSystem: LocalFileSystem(), parser: LiteMDMarkdownParserStub(), recoveryStore: store)
+        relaunched.isAutosaveEnabled = false
+        let entries = await relaunched.pendingRecoveryEntries()
+        #expect(entries.count == 2)
+
+        let failures = await relaunched.recover(entries)
+        #expect(failures.isEmpty)
+        let texts = Set(relaunched.documents.map(\.text))
+        #expect(texts == ["saved + unsaved", "scratch"])
+        let allDirty = relaunched.documents.allSatisfy(\.isDirty)
+        #expect(allDirty)
+        #expect(env.directory.read(url) == "saved")
+    }
+
+    @Test func savingRemovesRecoverySnapshot() async throws {
+        let env = TestEnvironment()
+        let url = env.directory.file("a.md", "x")
+        let document = try await env.service.openDocument(at: url)
+        document.type("y")
+        env.service.noteTextDidChange(document, isComposing: false)
+
+        let recoveryURL = env.recoveryDirectory.url
+        #expect(await waitUntil { await FileRecoveryStore(directory: recoveryURL).entries().count == 1 })
+
+        try await env.service.save(document)
+        #expect(await waitUntil { await FileRecoveryStore(directory: recoveryURL).entries().isEmpty })
+    }
+}
+
+struct LiteMDMarkdownParserStub: MarkdownParsing {
+    func parse(_ text: String, documentID: DocumentID, revision: Int, options: MarkdownParseOptions) async -> ParseResult {
+        ParseResult(documentID: documentID, revision: revision)
+    }
+}

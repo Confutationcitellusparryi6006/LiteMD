@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Xcode
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+build/
+
+# SwiftPM
+.build/
+.swiftpm/
+Packages/LiteMDKit/.build/
+Packages/LiteMDKit/.swiftpm/
+
+# 由 XcodeGen 生成
+LiteMD.xcodeproj/
+
+# 安装包不入库，走 GitHub Releases 分发
+site/releases/*.dmg
+site/releases/*.zip

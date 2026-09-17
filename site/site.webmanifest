@@ -1,0 +1,13 @@
+{
+  "name": "LiteMD",
+  "short_name": "LiteMD",
+  "description": "为 macOS 而生的轻量 Markdown 编辑器。",
+  "start_url": "/",
+  "display": "browser",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "assets/icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "assets/icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}

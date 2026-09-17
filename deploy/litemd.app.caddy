@@ -1,0 +1,28 @@
+# 官网。放到服务器的 /etc/caddy/sites/litemd.app.caddy，然后 systemctl reload caddy。
+# 站点文件由 scripts/deploy-site.sh 同步到 /var/www/litemd.app。
+litemd.app {
+	# 磁盘映像本身已经压缩过，再压一遍只是白烧 CPU。
+	@compressible not path /releases/*
+	encode @compressible zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	@static path *.png *.ico *.woff2 *.css *.js *.webmanifest
+	header @static Cache-Control "public, max-age=86400"
+	header / Cache-Control "no-cache"
+	header /index.html Cache-Control "no-cache"
+	# 安装包文件名带版本号，内容不会变，可以长缓存。
+	header /releases/* Cache-Control "public, max-age=2592000"
+
+	root * /var/www/litemd.app
+	file_server
+}
+
+www.litemd.app {
+	redir https://litemd.app{uri} permanent
+}

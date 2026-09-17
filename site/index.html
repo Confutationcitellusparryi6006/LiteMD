@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="zh-Hans" data-ui-lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LiteMD — 为 macOS 而生的轻量 Markdown 编辑器</title>
+<meta name="description" content="LiteMD 是一款原生 macOS Markdown 编辑器：实时预览、20 套配色、内置格式转换、版本历史与 S3 备份。">
+<link rel="icon" href="assets/favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="assets/favicon-16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/apple-touch-icon.png">
+<link rel="manifest" href="site.webmanifest">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1e1f22" media="(prefers-color-scheme: dark)">
+<link rel="stylesheet" href="styles.css">
+<script defer src="https://tongji.giantaccel.com/script.js" data-website-id="a1a120c5-6ffd-4343-b30f-9e664da961e9"></script>
+</head>
+<body>
+
+<svg width="0" height="0" aria-hidden="true" style="position:absolute">
+  <defs>
+    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-feather" viewBox="0 0 24 24"><path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5Z"/><path d="M16 8 2 22"/><path d="M17.5 15H9"/></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 22a1 1 0 0 1 0-20 10 9 0 0 1 10 9 5 5 0 0 1-5 5h-2.25a1.75 1.75 0 0 0-1.4 2.8l.3.4a1.75 1.75 0 0 1-1.4 2.8Z"/><circle cx="13.5" cy="6.5" r=".6"/><circle cx="17.5" cy="10.5" r=".6"/><circle cx="6.5" cy="12.5" r=".6"/><circle cx="8.5" cy="7.5" r=".6"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+    <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+    <symbol id="i-swap" viewBox="0 0 24 24"><path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/><path d="M20 17H4"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></symbol>
+    <symbol id="i-lang" viewBox="0 0 24 24"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-import" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
+    <symbol id="i-export" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="m8 7 4-4 4 4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
+  </defs>
+</svg>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="#top">
+      <img class="brand-icon" src="assets/icon-blue.png" alt="" width="28" height="28">
+      <span class="wordmark">LiteMD</span>
+    </a>
+
+    <nav class="nav">
+      <a href="#features"><span lang="zh">功能</span><span lang="en">Features</span></a>
+      <a href="#themes"><span lang="zh">主题</span><span lang="en">Themes</span></a>
+      <a href="#convert"><span lang="zh">格式转换</span><span lang="en">Conversion</span></a>
+      <a href="#download"><span lang="zh">下载</span><span lang="en">Download</span></a>
+    </nav>
+
+    <div class="header-actions">
+      <button class="icon-button" id="langToggle" type="button" aria-label="切换语言 / Switch language">
+        <svg class="icon" aria-hidden="true"><use href="#i-lang"/></svg>
+        <span class="icon-button-text" id="langLabel">EN</span>
+      </button>
+      <button class="icon-button" id="themeToggle" type="button" aria-label="切换深色模式 / Toggle dark mode">
+        <svg class="icon icon-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+        <svg class="icon icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <div class="wrap">
+      <p class="eyebrow">
+        <span lang="zh">macOS · 通用二进制 · 0.1.0</span>
+        <span lang="en">macOS · Universal · 0.1.0</span>
+      </p>
+      <h1>
+        <span lang="zh">为 macOS 而生的<br>轻量 Markdown 编辑器</span>
+        <span lang="en">A lightweight Markdown editor,<br>native to macOS</span>
+      </h1>
+      <p class="lede">
+        <span lang="zh">边写边渲染，20 套配色，导入导出都内置。文件始终是你文件夹里的普通 <code>.md</code> 文件，随时可以拿走。</span>
+        <span lang="en">Live rendering, 20 color themes, conversion built in. Your files stay as plain <code>.md</code> files in your own folder — yours to take anywhere.</span>
+      </p>
+      <div class="cta-row">
+        <a class="button button-primary" href="releases/LiteMD-0.1.0.dmg">
+          <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+          <span lang="zh">下载 LiteMD 0.1.0</span>
+          <span lang="en">Download LiteMD 0.1.0</span>
+        </a>
+        <a class="button button-secondary" href="#features">
+          <span lang="zh">看看里面有什么</span>
+          <span lang="en">See what’s inside</span>
+        </a>
+      </div>
+      <p class="fine-print">
+        <span lang="zh">需要 macOS 15 或更高版本 · Apple 芯片与 Intel 通用 · 磁盘映像 11 MB</span>
+        <span lang="en">Requires macOS 15 or later · Universal (Apple silicon &amp; Intel) · 11 MB disk image</span>
+      </p>
+
+      <figure class="shot">
+        <img id="heroShot" src="assets/app-light.png" width="2200" height="1403"
+             alt="LiteMD 主窗口：左侧是文件夹目录树，右侧是实时预览的编辑区">
+      </figure>
+    </div>
+  </section>
+
+  <section class="section" id="features">
+    <div class="wrap">
+      <h2 class="section-title">
+        <span lang="zh">一个编辑器该有的，都在里面</span>
+        <span lang="en">Everything an editor should have</span>
+      </h2>
+      <p class="section-lede">
+        <span lang="zh">用 Swift 和 AppKit 写成，没有 Electron，也不需要你先去装别的工具。</span>
+        <span lang="en">Written in Swift and AppKit. No Electron, and nothing to install alongside it.</span>
+      </p>
+
+      <div class="grid">
+        <article class="card">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-eye"/></svg>
+          <h3><span lang="zh">实时预览</span><span lang="en">Live preview</span></h3>
+          <p>
+            <span lang="zh">标题、链接、代码、公式在编辑区里直接成形，不用来回切换。要并排对照时切到分栏；KaTeX 公式、代码高亮和 Mermaid 图表随应用离线打包，断网也能渲染。</span>
+            <span lang="en">Headings, links, code and formulas take shape right in the editor. Split the window when you want them side by side — KaTeX, syntax highlighting and Mermaid ship inside the app and render offline.</span>
+          </p>
+        </article>
+
+        <article class="card">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-feather"/></svg>
+          <h3><span lang="zh">真的轻</span><span lang="en">Genuinely light</span></h3>
+          <p>
+            <span lang="zh">整个应用 18 MB，磁盘映像 11 MB，一个通用二进制同时支持 Apple 芯片和 Intel。不捆绑浏览器内核，也不捆绑 Python 运行时。</span>
+            <span lang="en">18 MB installed, an 11 MB disk image, one universal binary for both Apple silicon and Intel. No bundled browser engine, no bundled Python runtime.</span>
+          </p>
+        </article>
+
+        <article class="card">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-palette"/></svg>
+          <h3><span lang="zh">20 套配色</span><span lang="en">20 color themes</span></h3>
+          <p>
+            <span lang="zh">10 套浅色、10 套深色，浅色模式和深色模式各挑一套，应用外观跟着走。正文、标题、代码三种字体，字号、行高、行宽、段落间距逐项可调。</span>
+            <span lang="en">Ten light, ten dark. Pick one for light mode and one for dark, and the app follows. Separate fonts for body, headings and code, with sliders for size, line height, line width and paragraph spacing.</span>
+          </p>
+        </article>
+
+        <article class="card">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-folder"/></svg>
+          <h3><span lang="zh">文件夹就是工作区</span><span lang="en">A folder is the workspace</span></h3>
+          <p>
+            <span lang="zh">打开任意文件夹就能开始写。侧栏是真实的目录树，<code>[[Wiki 链接]]</code>、大纲、全文搜索和命令面板都在手边，没有专有格式，没有数据库。</span>
+            <span lang="en">Open any folder and start writing. The sidebar is the real directory tree, with <code>[[wiki links]]</code>, an outline, full-text search and a command palette. No proprietary format, no database.</span>
+          </p>
+        </article>
+
+        <article class="card">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-history"/></svg>
+          <h3><span lang="zh">版本历史与备份</span><span lang="en">History and backup</span></h3>
+          <p>
+            <span lang="zh">本地保留历史版本，写错了随时翻回去。备份指向你自己的 S3 兼容存储，访问凭据存在系统钥匙串里，不经过任何中间服务。</span>
+            <span lang="en">Earlier versions are kept locally, so you can always go back. Backup points at your own S3-compatible storage, with credentials in the system keychain and nothing in between.</span>
+          </p>
+        </article>
+
+        <article class="card">
+          <svg class="icon icon-lg" aria-hidden="true"><use href="#i-swap"/></svg>
+          <h3><span lang="zh">格式转换内置</span><span lang="en">Conversion, built in</span></h3>
+          <p>
+            <span lang="zh">Word、PPT、Excel、EPUB、PDF、网页、图片、录音都能变成 Markdown；写完再导出成 HTML、PDF、Word、EPUB、LaTeX。不用装 Pandoc，也不用装 Python。</span>
+            <span lang="en">Word, PowerPoint, Excel, EPUB, PDF, web pages, images and recordings all become Markdown — and your writing exports to HTML, PDF, Word, EPUB or LaTeX. No Pandoc, no Python.</span>
+          </p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="themes">
+    <div class="wrap">
+      <h2 class="section-title">
+        <span lang="zh">挑一套看着舒服的</span>
+        <span lang="en">Pick one that’s easy on the eyes</span>
+      </h2>
+      <p class="section-lede">
+        <span lang="zh">每套主题都覆盖编辑区、标题、强调色和侧栏。点一下试试——下面是实际的配色取值。</span>
+        <span lang="en">Each theme covers the editor, headings, accents and sidebar. Give one a tap — these are the app’s actual values.</span>
+      </p>
+
+      <div class="theme-layout">
+        <div class="theme-list" id="themeList" role="radiogroup" aria-label="主题 / Themes"></div>
+
+        <div class="theme-stage">
+          <div class="theme-preview" id="themePreview">
+            <div class="tp-sidebar">
+              <div class="tp-sidebar-title">SampleNotes</div>
+              <div class="tp-row">assets</div>
+              <div class="tp-row">Ideas</div>
+              <div class="tp-row is-active">功能演示.md</div>
+              <div class="tp-row">README.md</div>
+              <div class="tp-row">sample.md</div>
+            </div>
+            <div class="tp-editor">
+              <div class="tp-h1"><span class="tp-marker">#</span> <span lang="zh">实时预览</span><span lang="en">Live preview</span></div>
+              <p class="tp-p">
+                <span lang="zh">链接到 <span class="tp-link">README</span>，行内公式 <span class="tp-code-inline">E=mc^2</span>，还有 <span class="tp-highlight">高亮</span>。</span>
+                <span lang="en">Links to <span class="tp-link">README</span>, inline math <span class="tp-code-inline">E=mc^2</span>, and a <span class="tp-highlight">highlight</span>.</span>
+              </p>
+              <div class="tp-code">
+                <div><span class="tp-marker">```swift</span></div>
+                <div>struct Note { let title: String }</div>
+                <div><span class="tp-marker">```</span></div>
+              </div>
+              <div class="tp-quote">
+                <span lang="zh">引用文字，加粗与斜体。</span>
+                <span lang="en">A quote, with bold and italic.</span>
+              </div>
+              <div class="tp-task"><span class="tp-marker">- [x]</span> <span lang="zh">已完成事项</span><span lang="en">Done</span></div>
+              <div class="tp-task"><span class="tp-marker">- [ ]</span> <span lang="zh">待办事项</span><span lang="en">To do</span></div>
+            </div>
+          </div>
+          <p class="theme-caption">
+            <span class="theme-name" id="themeName">纸白</span>
+            <span class="theme-meta" id="themeMeta">Paper · 浅色</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="convert">
+    <div class="wrap">
+      <h2 class="section-title">
+        <span lang="zh">别的格式进得来，出得去</span>
+        <span lang="en">Other formats come in, and go out</span>
+      </h2>
+      <p class="section-lede">
+        <span lang="zh">转换全部在应用里完成，不需要安装外部工具，也不会把文件传到别处。</span>
+        <span lang="en">All conversion happens inside the app — nothing to install, and nothing leaves your Mac.</span>
+      </p>
+
+      <div class="convert-grid">
+        <div class="convert-column">
+          <h3 class="convert-heading">
+            <svg class="icon" aria-hidden="true"><use href="#i-import"/></svg>
+            <span lang="zh">变成 Markdown</span><span lang="en">Into Markdown</span>
+          </h3>
+          <ul class="fmt-grid">
+            <li class="fmt"><span class="fmt-badge" data-kind="doc">DOCX</span><span class="fmt-name">Word</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="slide">PPTX</span><span class="fmt-name">PowerPoint</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="data">XLSX</span><span class="fmt-name">Excel</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="book">EPUB</span><span class="fmt-name">EPUB</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="slide">PDF</span><span class="fmt-name">PDF</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="book">HTML</span><span class="fmt-name">HTML</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="doc">ODT</span><span class="fmt-name">OpenDocument</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="doc">RTF</span><span class="fmt-name"><span lang="zh">富文本</span><span lang="en">Rich Text</span></span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="data">CSV</span><span class="fmt-name">CSV / TSV</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="data">JSON</span><span class="fmt-name">JSON / XML</span></li>
+          </ul>
+          <p class="convert-note">
+            <span lang="zh">变体也认：.doc、.dotx、.pptm、.xlsm、.htm、.tsv 这些都会走同一条转换路径。图片里的文字用系统的文字识别提取（中英日韩），录音用本机语音识别转成文稿——音频不上传。</span>
+            <span lang="en">Variants are handled too — .doc, .dotx, .pptm, .xlsm, .htm and .tsv all take the same path. Text inside images is read with the system’s on-device recognition (Chinese, English, Japanese, Korean); recordings are transcribed locally — audio never leaves the Mac.</span>
+          </p>
+        </div>
+
+        <div class="convert-column">
+          <h3 class="convert-heading">
+            <svg class="icon" aria-hidden="true"><use href="#i-export"/></svg>
+            <span lang="zh">从 Markdown 导出</span><span lang="en">Out of Markdown</span>
+          </h3>
+          <ul class="fmt-grid">
+            <li class="fmt"><span class="fmt-badge" data-kind="book">HTML</span><span class="fmt-name">HTML</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="slide">PDF</span><span class="fmt-name">PDF</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="doc">DOCX</span><span class="fmt-name">Word</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="book">EPUB</span><span class="fmt-name">EPUB</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="doc">RTF</span><span class="fmt-name"><span lang="zh">富文本</span><span lang="en">Rich Text</span></span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="doc">ODT</span><span class="fmt-name">OpenDocument</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="book">TEX</span><span class="fmt-name">LaTeX</span></li>
+            <li class="fmt"><span class="fmt-badge" data-kind="data">TXT</span><span class="fmt-name"><span lang="zh">纯文本</span><span lang="en">Plain text</span></span></li>
+          </ul>
+          <p class="convert-note">
+            <span lang="zh">导出的 Word 和 EPUB 由应用自己生成，标题层级、列表、表格、代码块和图片都会带过去。</span>
+            <span lang="en">Word and EPUB files are written by the app itself, carrying over heading levels, lists, tables, code blocks and images.</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section-alt" id="details">
+    <div class="wrap">
+      <h2 class="section-title">
+        <span lang="zh">写作时的一些小事</span>
+        <span lang="en">The small things, while you write</span>
+      </h2>
+      <ul class="detail-list">
+        <li>
+          <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <div>
+            <strong><span lang="zh">专注模式与打字机滚动</span><span lang="en">Focus mode and typewriter scrolling</span></strong>
+            <span lang="zh">当前段落之外的文字淡下去，光标一直停在屏幕中间。</span>
+            <span lang="en">Everything but the current paragraph fades back, and the caret stays mid-screen.</span>
+          </div>
+        </li>
+        <li>
+          <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <div>
+            <strong><span lang="zh">格式工具栏与命令面板</span><span lang="en">Formatting bar and command palette</span></strong>
+            <span lang="zh">常用格式一键可得，其余功能按名字搜出来执行。</span>
+            <span lang="en">Common formatting is one click away; everything else is a search away by name.</span>
+          </div>
+        </li>
+        <li>
+          <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <div>
+            <strong><span lang="zh">图片随文入库</span><span lang="en">Images land beside the text</span></strong>
+            <span lang="zh">粘贴或拖进来的图片会存进文档所在文件夹，链接写成相对路径。</span>
+            <span lang="en">Pasted or dropped images are saved next to the document and linked by relative path.</span>
+          </div>
+        </li>
+        <li>
+          <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <div>
+            <strong><span lang="zh">中英文界面</span><span lang="en">English and Chinese</span></strong>
+            <span lang="zh">界面语言可以在设置里切换，重启后生效。</span>
+            <span lang="en">Switch the interface language in Settings; it applies after a restart.</span>
+          </div>
+        </li>
+        <li>
+          <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <div>
+            <strong><span lang="zh">应用内更新</span><span lang="en">Updates in place</span></strong>
+            <span lang="zh">更新信息带 Ed25519 签名，校验通过才会安装。</span>
+            <span lang="en">Update manifests are signed with Ed25519 and verified before anything is installed.</span>
+          </div>
+        </li>
+        <li>
+          <svg class="icon" aria-hidden="true"><use href="#i-check"/></svg>
+          <div>
+            <strong><span lang="zh">四个应用图标</span><span lang="en">Four app icons</span></strong>
+            <span lang="zh">蓝、红、绿、石墨，随时在设置里换一个。</span>
+            <span lang="en">Blue, red, green and graphite — swap any time in Settings.</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="section download-section" id="download">
+    <div class="wrap download-wrap">
+      <div class="icon-row">
+        <img src="assets/icon-blue.png" alt="" width="72" height="72">
+        <img src="assets/icon-red.png" alt="" width="72" height="72">
+        <img src="assets/icon-green.png" alt="" width="72" height="72">
+        <img src="assets/icon-graphite.png" alt="" width="72" height="72">
+      </div>
+      <h2 class="section-title">
+        <span lang="zh">开始写吧</span>
+        <span lang="en">Start writing</span>
+      </h2>
+      <p class="section-lede">
+        <span lang="zh">下载解压即用，第一次打开时选一个放笔记的文件夹就行。</span>
+        <span lang="en">Download, drag it in, and point it at a folder for your notes.</span>
+      </p>
+      <div class="cta-row cta-center">
+        <a class="button button-primary" href="releases/LiteMD-0.1.0.dmg">
+          <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+          <span lang="zh">下载 LiteMD 0.1.0</span>
+          <span lang="en">Download LiteMD 0.1.0</span>
+        </a>
+      </div>
+      <dl class="spec">
+        <div><dt><span lang="zh">版本</span><span lang="en">Version</span></dt><dd>0.1.0</dd></div>
+        <div><dt><span lang="zh">系统要求</span><span lang="en">Requires</span></dt><dd>macOS 15.0+</dd></div>
+        <div><dt><span lang="zh">架构</span><span lang="en">Architecture</span></dt><dd><span lang="zh">通用二进制</span><span lang="en">Universal</span></dd></div>
+        <div><dt><span lang="zh">大小</span><span lang="en">Size</span></dt><dd>11 MB</dd></div>
+      </dl>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <span class="wordmark wordmark-sm">LiteMD</span>
+    <p class="footer-note">
+      <span lang="zh">© 2026 LiteMD · 字标使用 Philosopher 字体（SIL Open Font License）</span>
+      <span lang="en">© 2026 LiteMD · Wordmark set in Philosopher (SIL Open Font License)</span>
+    </p>
+  </div>
+</footer>
+
+<script src="site.js"></script>
+</body>
+</html>
