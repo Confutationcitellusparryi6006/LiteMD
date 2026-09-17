@@ -19,3 +19,4 @@ LiteMD.xcodeproj/
 # 安装包不入库，走 GitHub Releases 分发
 site/releases/*.dmg
 site/releases/*.zip
+site/releases/appcast.json

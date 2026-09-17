@@ -17,7 +17,11 @@ litemd.app {
 	header / Cache-Control "no-cache"
 	header /index.html Cache-Control "no-cache"
 	# 安装包文件名带版本号，内容不会变，可以长缓存。
-	header /releases/* Cache-Control "public, max-age=2592000"
+	# 注意：重新打同一个版本号会被 CDN 挡住，那种情况要手动清缓存。
+	header /releases/*.dmg Cache-Control "public, max-age=2592000"
+	header /releases/*.zip Cache-Control "public, max-age=2592000"
+	# 更新清单必须实时：缓存住它，客户端就收不到新版本。
+	header /releases/appcast.json Cache-Control "no-cache"
 
 	root * /var/www/litemd.app
 	file_server
